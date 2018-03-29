@@ -16,7 +16,7 @@ class SrReceiver:
 		
 	def run():
 		while True:
-			messageByteseee, clientAddress = self.serverSocket.recvFrom(2048)
+			messageBytes, clientAddress = self.serverSocket.recvFrom(2048)
 			message = Message(messageBytes)
 			if message.checksumValue != message.calcChecksum():	# corrupted header
 				continue;
