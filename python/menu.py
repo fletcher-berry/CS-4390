@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 import selectiveRepeatRunner
+import gbn_sender
 import os
 
 def prompt_for_file():
@@ -13,8 +14,8 @@ def prompt_for_window():
     while True:
         try: 
             window_size = int(input("Enter a window size>"))
-
-            if window_size in range(1,65535):
+    
+            if window_size in range(1,65555):
                 return window_size
             else: 
                 print("Invalid window size")
@@ -34,7 +35,10 @@ def main():
             decision = input(">")
 
             if decision == "0":
+                filepath = prompt_for_file()
                 print("Go back N currently unsupported")
+                #gbn = gbn_sender(windowSize, payloadSize, filePath)
+                #gbn.run()
                 decision = "x"
             elif decision == "1":
                 filepath = prompt_for_file()
