@@ -12,7 +12,7 @@ class SrSender:
 		self.windowBase = 0
 		self.file = open(filePath, "r")
 		self.doneReading = False	# whether or not end of file to transmit has been seen
-		self.window = {}			# array of sequence numbers of unreceived messages
+		self.window = {}			# maps sequence number to bytes of message (including header)
 		self.messageQueue = []		# array of messages to send
 		self.queueUse = Semaphore(1)
 		
@@ -31,6 +31,8 @@ class SrSender:
 				message = messageQueue[0]
 				self.clientSocket.sendTo(message.toBytes(), (serverName, serverPort))
 				del(messageQueue[0])
+			timer = Timer(0.1, timeout, message.sequenceNumber)
+			timer.start()
 			queueUse.release()
 			
 	def receiveFunc()
@@ -42,6 +44,15 @@ class SrSender:
 				del(self.window[seqNum])
 				if(seqNum == self.windowBase):
 					getMoreData()
+					
+	def timeout(sequenceNumber):
+		queueUse.acquire()
+		retransmitMessage = Message(window[sequenceNumber])
+		messageQueue.insert(0, retransmitMessage)
+		queueUse.release()
+		timer = Timer(0.1, timeout, message.sequenceNumber)
+		timer.start()
+		
 				
 		
 		
