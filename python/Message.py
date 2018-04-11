@@ -30,6 +30,21 @@ class Message:
 
 	def calcChecksum(self):
 		sum = sequenceNumber + acknowledgmentNumber
-		if sum > 65535:
-			sun -= 65535
+		isNewValue = True
+		nextValue = 0
+		for byte in payload:
+			if isNewValue:
+				nextValue += byte * 256
+				isNewValue = false
+			else:
+				nextValue += byte
+				sum += nextValue
+				isNewValue = false
+			
+		sum %= 65536
 		return sum
+		
+	# length of payload in bytes
+	def getLength(self):
+		return len(payload)
+		
