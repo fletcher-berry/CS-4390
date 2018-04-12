@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
 import socket
-import Message
+from Message import Message
 
 class GbnSender:
     def __init__(self, windowSize, payloadSize, filePath):
         self.serverAddr = "127.0.0.1"
         self.serverPort = 2345
-        self.socket = socket(AF_INET, SOCK_DGRAM)
+        self.socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         self.payloadSize = payloadSize
         self.filePath = filePath
 
@@ -29,8 +29,12 @@ class GbnSender:
                     seqNum = seqNum + 1
 
                     # package up into message and send to receiver
-                    msg = Message(sendSeqNum, sendAckNum, pkt)
-                    self.socket.sendTo(msg, (serverAddr, serverPort))
+                    msg = Message(
+                        seqNum=sendSeqNum,
+                        ackNum=sendAckNum,
+                        payload=pkt)
+
+                    self.socket.sendto(msg, (self.serverAddr, self.serverPort))
 
                     # Read more from file
                     pkt = inputFile.read(self.payloadSize)
@@ -38,14 +42,14 @@ class GbnSender:
 
                 # look for an ACK to further along the window
                 else:
-                    msgBytes, Addr = self.socket.recvFrom(2048)
-                    msg = Message(msgBytes)
+                    msgBytes, Addr = self.socket.recvfrom(2048)
+                    msg = Message(messageBytes=msgBytes)
 
                     # successfully received uncorrupted packet
                     if msg.checksumValue == msg.calcChecksum():
                         ReceivedSeqNum = msg.ackNum
                         # move window base along, remove packet from front
-                        self.windowBase = self.WindowBase + 1
+                        self.windowBase = self.windowBase + 1
                         del self.window[0]
                     
                 # probably put timeout here
