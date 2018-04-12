@@ -1,4 +1,8 @@
-from socket import *
+import thread
+from socket import socket, AF_INET, SOCK_DGRAM
+from threading import Semaphore, Timer
+
+from Message import Message
 
 class SrSender:
 	
@@ -6,7 +10,7 @@ class SrSender:
 	def __init__(self, windowSize, payloadSize, filePath):
 		self.windowSize = windowSize * payloadSize	# window size in bytes
 		self.serverName = "127.0.0.1"
-		self.serverPort = 2345;
+		self.serverPort = 2345
 		self.clientSocket = socket(AF_INET, SOCK_DGRAM)
 		self.payloadSize = payloadSize
 		self.windowBase = 0
@@ -17,40 +21,40 @@ class SrSender:
 		self.queueUse = Semaphore(1)
 		
 		
-	def run():
-		thread.start_new_thread(sendFunc, ())
-		thread.start_new_thread(receiveFunc, ())
-		
-	
-	
-	
-	def sendFunc():
+	def run(self):
+		# TODO: Does self need to be included here? --Daniel
+		# Maybe should use threading.Thread instead.
+		thread.start_new_thread(self.sendFunc, ())
+		thread.start_new_thread(self.receiveFunc, ())
+
+	def sendFunc(self):
 		while True:
-			queueUse.acquire()
-			if len(messageQueue) > 0:
-				message = messageQueue[0]
-				self.clientSocket.sendTo(message.toBytes(), (serverName, serverPort))
-				del(messageQueue[0])
-			timer = Timer(0.1, timeout, message.sequenceNumber)
+			self.queueUse.acquire()
+			if len(self.messageQueue) > 0:
+				message = self.messageQueue[0]
+				self.clientSocket.sendto(message.toBytes(), (self.serverName, self.serverPort))
+				del(self.messageQueue[0])
+			timer = Timer(0.1, self.timeout, message.sequenceNumber)
 			timer.start()
-			queueUse.release()
+			self.queueUse.release()
 			
-	def receiveFunc()
-		while(true):
-			messageBytes, serverAddress = self.clientSocket.recvFrom(2048)
+	def receiveFunc(self):
+		while(True):
+			messageBytes, serverAddress = self.clientSocket.recvfrom(2048)
 			message = Message(messageBytes=messageBytes)
 			if message.checksumValue == message.calcChecksum():
 				seqNum = message.sequenceNumber
 				del(self.window[seqNum])
 				if(seqNum == self.windowBase):
-					getMoreData()
+					self.getMoreData()
 					
-	def timeout(sequenceNumber):
-		queueUse.acquire()
-		retransmitMessage = Message(messageBytes=window[sequenceNumber])
-		messageQueue.insert(0, retransmitMessage)
-		queueUse.release()
-		timer = Timer(0.1, timeout, message.sequenceNumber)
+	def timeout(self, sequenceNumber):
+		self.queueUse.acquire()
+		retransmitMessage = Message(messageBytes=self.window[sequenceNumber])
+		self.messageQueue.insert(0, retransmitMessage)
+		self.queueUse.release()
+		# TODO: what is 'message' here? self.messageQueue[0]?
+		timer = Timer(0.1, self.timeout, message.sequenceNumber)
 		timer.start()
 		
 				
@@ -60,7 +64,7 @@ class SrSender:
 	#sendMessage(self, message):
 	
 	# read file to fill window if window is not full
-	def getMoreData():
+	def getMoreData(self):
 		if self.doneReading:
 			return
 		nextToRead = self.windowBase + self.windowSize		# all packets up to this point have been stored in window
@@ -80,15 +84,15 @@ class SrSender:
 		self.queueUse.acquire()
 		# read from the file to fill the unused window
 		while nextToRead + self.payloadSize <= max or nextToRead + self.payloadSize - 32000 > max:
-			newBytes = bytearray(file.read(self.payloadSize))
+			newBytes = bytearray(self.file.read(self.payloadSize))
 			self.window[nextToRead] = newBytes
 			packet = Message(messageBytes=newBytes)
-			messageQueue.append(packet)
-			nextToRead += payloadSize
+			self.messageQueue.append(packet)
+			nextToRead += self.payloadSize
 			if nextToRead >= 65536:
 				nextToRead -= 65536
-			if len(newBytes) < payloadSize:	# last packet
-				self.doneReading = true
+			if len(newBytes) < self.payloadSize:	# last packet
+				self.doneReading = True
 				self.file.close()
 		self.queueUse.release()
 				
