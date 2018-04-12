@@ -12,20 +12,20 @@ class Message:
 		if messageBytes is None:
 			self.sequenceNumber = seqNum
 			self.acknowledgmentNumber = ackNum
-			self.checksumValue = self.calcChecksum()
 			self.payload = payload
+			self.checksumValue = self.calcChecksum()
 		else:
 			self.sequenceNumber = messageBytes[0] * 256 + messageBytes[1]
-			self.ackNum = messageBytes[2] * 256 + messageBytes[3]
+			self.acknowledgmentNumber = messageBytes[2] * 256 + messageBytes[3]
 			self.checksumValue = messageBytes[4] * 256 + messageBytes[5]
 			self.payload = messageBytes[6:]	
 
 	def toBytes(self):
-		seqNum = [self.sequenceNumber // 256, self.sequenceNumber % 256]
-		ackNum = [self.acknowledgmentNumber // 256, self.acknowledgmentNumber % 256]
+		seqNum = bytearray([self.sequenceNumber // 256, self.sequenceNumber % 256])
+		ackNum = bytearray([self.acknowledgmentNumber // 256, self.acknowledgmentNumber % 256])
 		checksumInt = self.calcChecksum()
-		checksumBytes = [checksumInt // 256, checksumInt % 256]
-		return seqNum + ackNum + checksumBytes + self.payload
+		checksumBytes = bytearray([checksumInt // 256, checksumInt % 256])
+		return seqNum + ackNum + checksumBytes + bytearray(self.payload)
 
 	def calcChecksum(self):
 		sum = self.sequenceNumber + self.acknowledgmentNumber

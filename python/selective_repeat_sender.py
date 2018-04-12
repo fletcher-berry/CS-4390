@@ -16,7 +16,9 @@ class SrSender:
 		self.windowSize = windowSize * payloadSize  # window size in bytes
 		self.serverName = "127.0.0.1"
 		self.serverPort = 2345
+		self.clientPort = 2346
 		self.clientSocket = socket(AF_INET, SOCK_DGRAM)
+		self.clientSocket.bind(('', self.clientPort))
 		self.payloadSize = payloadSize
 		self.windowBase = 0
 		self.file = open(filePath, "r")
@@ -24,17 +26,22 @@ class SrSender:
 		self.window = {}  # maps sequence number to bytes of message (including header)
 		self.messageQueue = []  # array of messages to send
 		self.queueUse = threading.Semaphore(1)
+		self.getMoreData()
 
 	def run(self):
+
 		_thread.start_new_thread(self.sendFunc, ())
 		_thread.start_new_thread(self.receiveFunc, ())
 
 	def sendFunc(self):
+
 		while True:
+
 			self.queueUse.acquire()
 			if len(self.messageQueue) > 0:
 				message = self.messageQueue[0]
-				self.clientSocket.sendTo(message.toBytes(), (self.serverName, self.serverPort))
+				self.clientSocket.sendto(message.toBytes(), (self.serverName, self.serverPort))
+
 				del (self.messageQueue[0])
 				timer = threading.Timer(0.1, timeout, message.sequenceNumber)
 				timer.start()
@@ -42,13 +49,13 @@ class SrSender:
 
 	def receiveFunc(self):
 		while True:
-			messageBytes, serverAddress = self.clientSocket.recvFrom(2048)
+			messageBytes, serverAddress = self.clientSocket.recvfrom(1024)
 			message = Message(messageBytes=messageBytes)
 			if message.checksumValue == message.calcChecksum():
 				seqNum = message.sequenceNumber
 				del (self.window[seqNum])
-			if (seqNum == self.windowBase):
-				self.getMoreData()
+				if (seqNum == self.windowBase):
+					self.getMoreData()
 
 	def timeout(self, sequenceNumber):
 		self.queueUse.acquire()
@@ -79,7 +86,7 @@ class SrSender:
 		self.queueUse.acquire()
 		# read from the file to fill the unused window
 		while nextToRead + self.payloadSize <= max or nextToRead + self.payloadSize - 32000 > max:
-			newBytes = bytearray(self.file.read(self.payloadSize))
+			newBytes = bytearray(self.file.read(self.payloadSize), 'utf-8')
 			self.window[nextToRead] = newBytes
 			packet = Message(messageBytes=newBytes)
 			self.messageQueue.append(packet)
@@ -89,4 +96,6 @@ class SrSender:
 			if len(newBytes) < self.payloadSize:  # last packet
 				self.doneReading = True
 				self.file.close()
+				break
 		self.queueUse.release()
+

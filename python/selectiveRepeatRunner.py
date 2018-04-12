@@ -10,3 +10,5 @@ def run(windowSize, payloadSize, filePath):
 	# what to do after file is transmitted?
 
 run(32, 50, 'C:\data.txt')
+while True:
+	x = 0

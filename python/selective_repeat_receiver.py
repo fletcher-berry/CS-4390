@@ -3,12 +3,13 @@ from socket import *
 from Message import Message
 
 
+
 class SrReceiver:
 
 	def __init__(self, windowSize, payloadSize):
 		self.windowSize = windowSize * payloadSize # window size in bytes
 		self.serverName = "127.0.0.1"
-		self.serverPort = 2345;
+		self.serverPort = 2345
 		self.serverSocket = socket(AF_INET, SOCK_DGRAM)
 		self.serverSocket.bind(('', self.serverPort))
 		self.windowBase = 0
@@ -18,17 +19,20 @@ class SrReceiver:
 		
 		
 	def run(self):
+		print('running', flush=True)
+		# f = open("test2.txt")
+		# f.write("rrr")
+		# f.close()
 		while True:
-			messageBytes, clientAddress = self.serverSocket.recvFrom(2048)
+			messageBytes, clientAddress = self.serverSocket.recvfrom(2048)
+			print('received')
 			message = Message(messageBytes=messageBytes)
 			if message.checksumValue != message.calcChecksum():	# corrupted message
 				continue
-			# how to determine if payload is corrupted?
-			# is there a python method?
 			
 			# send ack
 			ack = Message(seqNum=0, ackNum=message.sequenceNumber, payload=[])
-			self.serverSocket.sendTo(ack.toBytes(), clientAddress)
+			self.serverSocket.sendto(ack.toBytes(), clientAddress)
 			
 			# check if sequence number is in window
 			windowMax = self.windowBase + self.windowSize
@@ -50,6 +54,6 @@ class SrReceiver:
 			self.sentToApplication += self.buffer[self.windowBase]
 			del(self.buffer[self.windowBase])
 			self.windowBase += self.payloadSize
+
 			
-			
-			
+
