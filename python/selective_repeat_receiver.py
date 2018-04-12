@@ -1,5 +1,8 @@
 from socket import *
 
+from Message import Message
+
+
 class SrReceiver:
 
 	def __init__(self, windowSize, payloadSize):
@@ -7,19 +10,19 @@ class SrReceiver:
 		self.serverName = "127.0.0.1"
 		self.serverPort = 2345;
 		self.serverSocket = socket(AF_INET, SOCK_DGRAM)
-		serverSocket.bind(('', serverPort))
+		self.serverSocket.bind(('', self.serverPort))
 		self.windowBase = 0
 		self.payloadSize = payloadSize
 		self.buffer = {}				# map sequence number to message payload
 		self.sentToApplication = [] 	# bytes sent to application layer
 		
 		
-	def run():
+	def run(self):
 		while True:
 			messageBytes, clientAddress = self.serverSocket.recvFrom(2048)
 			message = Message(messageBytes=messageBytes)
-			if message.checksumValue != message.calcChecksum():	# corrupted header
-				continue;
+			if message.checksumValue != message.calcChecksum():	# corrupted message
+				continue
 			# how to determine if payload is corrupted?
 			# is there a python method?
 			
@@ -38,14 +41,14 @@ class SrReceiver:
 			
 			# if in window buffer
 			self.buffer[message.sequenceNumber] = message.payload
-			if(message.sequenceNumber == self.windowBase):
-				updateBuffer()
+			if message.sequenceNumber == self.windowBase:
+				self.updateBuffer()
 			
 			
-	def updateBuffer():
+	def updateBuffer(self):
 		while self.buffer.has_key(self.windowBase):	# first message in window has been received
-			sentToApplication += self.buffer[windowBase]
-			del(self.buffer[windowBase])
+			self.sentToApplication += self.buffer[self.windowBase]
+			del(self.buffer[self.windowBase])
 			self.windowBase += self.payloadSize
 			
 			
