@@ -38,7 +38,7 @@ class SrSender:
 	def receiveFunc()
 		while(true):
 			messageBytes, serverAddress = self.clientSocket.recvFrom(2048)
-			message = Message(messageBytes)
+			message = Message(messageBytes=messageBytes)
 			if message.checksumValue == message.calcChecksum():
 				seqNum = message.sequenceNumber
 				del(self.window[seqNum])
@@ -47,7 +47,7 @@ class SrSender:
 					
 	def timeout(sequenceNumber):
 		queueUse.acquire()
-		retransmitMessage = Message(window[sequenceNumber])
+		retransmitMessage = Message(messageBytes=window[sequenceNumber])
 		messageQueue.insert(0, retransmitMessage)
 		queueUse.release()
 		timer = Timer(0.1, timeout, message.sequenceNumber)
@@ -82,7 +82,7 @@ class SrSender:
 		while nextToRead + self.payloadSize <= max or nextToRead + self.payloadSize - 32000 > max:
 			newBytes = bytearray(file.read(self.payloadSize))
 			self.window[nextToRead] = newBytes
-			packet = Message(newBytes)
+			packet = Message(messageBytes=newBytes)
 			messageQueue.append(packet)
 			nextToRead += payloadSize
 			if nextToRead >= 65536:

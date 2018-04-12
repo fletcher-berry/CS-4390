@@ -17,14 +17,14 @@ class SrReceiver:
 	def run():
 		while True:
 			messageBytes, clientAddress = self.serverSocket.recvFrom(2048)
-			message = Message(messageBytes)
+			message = Message(messageBytes=messageBytes)
 			if message.checksumValue != message.calcChecksum():	# corrupted header
 				continue;
 			# how to determine if payload is corrupted?
 			# is there a python method?
 			
 			# send ack
-			ack = Message(0, message.sequenceNumber, [])
+			ack = Message(seqNum=0, ackNum=message.sequenceNumber, payload=[])
 			self.serverSocket.sendTo(ack.toBytes(), clientAddress)
 			
 			# check if sequence number is in window
