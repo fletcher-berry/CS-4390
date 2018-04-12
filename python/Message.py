@@ -24,26 +24,26 @@ class Message:
 		seqNum = [self.sequenceNumber // 256, self.sequenceNumber % 256]
 		ackNum = [self.acknowledgmentNumber // 256, self.acknowledgmentNumber % 256]
 		checksumInt = self.calcChecksum()
-		checksumBytes = [checkSumInt // 256, checksumInt % 256]
+		checksumBytes = [checksumInt // 256, checksumInt % 256]
 		return seqNum + ackNum + checksumBytes + self.payload
 
 	def calcChecksum(self):
-		sum = sequenceNumber + acknowledgmentNumber
+		sum = self.sequenceNumber + self.acknowledgmentNumber
 		isNewValue = True
 		nextValue = 0
-		for byte in payload:
+		for byte in self.payload:
 			if isNewValue:
 				nextValue += byte * 256
-				isNewValue = false
+				isNewValue = False
 			else:
 				nextValue += byte
 				sum += nextValue
-				isNewValue = false
+				isNewValue = False
 			
 		sum %= 65536
 		return sum
 		
 	# length of payload in bytes
 	def getLength(self):
-		return len(payload)
+		return len(self.payload)
 		
