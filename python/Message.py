@@ -8,7 +8,7 @@ class Message:
 	# of calcChecksum().  stored as number.
 	# payload: message payload not including headers, stored as byte array
 
-	def __init__(self, seqNum=None, ackNum=None, payload=None, messageBytes=None):
+	def __init__(self, seqNum=0, ackNum=0, payload=None, messageBytes=None):
 		if messageBytes is None:
 			self.sequenceNumber = seqNum
 			self.acknowledgmentNumber = ackNum

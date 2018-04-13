@@ -26,6 +26,7 @@ class SrSender:
 		self.window = {}  # maps sequence number to bytes of message (including header)
 		self.messageQueue = []  # array of messages to send
 		self.queueUse = threading.Semaphore(1)
+		self.nextSequenceNumber = 0
 		self.getMoreData()
 
 	def run(self):
@@ -43,7 +44,7 @@ class SrSender:
 				self.clientSocket.sendto(message.toBytes(), (self.serverName, self.serverPort))
 
 				del (self.messageQueue[0])
-				timer = threading.Timer(0.1, timeout, message.sequenceNumber)
+				timer = threading.Timer(0.1, timeout, [message.sequenceNumber])
 				timer.start()
 			self.queueUse.release()
 
@@ -52,27 +53,29 @@ class SrSender:
 			messageBytes, serverAddress = self.clientSocket.recvfrom(1024)
 			message = Message(messageBytes=messageBytes)
 			if message.checksumValue == message.calcChecksum():
-				seqNum = message.sequenceNumber
-				del (self.window[seqNum])
-				if (seqNum == self.windowBase):
+				ackNum = message.acknowledgmentNumber
+				del (self.window[ackNum])
+				if (ackNum == self.windowBase):
 					self.getMoreData()
 
 	def timeout(self, sequenceNumber):
-		self.queueUse.acquire()
-		retransmitMessage = Message(messageBytes=self.window[sequenceNumber])
-		self.messageQueue.insert(0, retransmitMessage)
-		self.queueUse.release()
-		timer = threading.Timer(0.1, timeout, (retransmitMessage.sequenceNumber))
-		timer.start()
+		if sequenceNumber in self.window:
+			self.queueUse.acquire()
+			retransmitMessage = Message(messageBytes=self.window[sequenceNumber])
+			self.messageQueue.insert(0, retransmitMessage)
+			self.queueUse.release()
+			timer = threading.Timer(0.1, timeout, [retransmitMessage.sequenceNumber])
+			timer.start()
+
 
 	# read file to fill window if window is not full
 	def getMoreData(self):
 		if self.doneReading:
 			return
-		nextToRead = self.windowBase + self.windowSize  # all packets up to this point have been stored in window
+		nextToRead = self.nextSequenceNumber  # all packets up to this point have been stored in window
 		# find smallest sequence number in window
 		wrap = self.windowBase + self.windowSize >= 65536
-		nextNotReceived = 100000
+		nextNotReceived = 1000000
 		for val in self.window:
 			seqNum = val
 			if wrap and seqNum < self.windowBase + self.windowSize:
@@ -81,15 +84,17 @@ class SrSender:
 				nextNotReceived = seqNum
 		if nextNotReceived >= 65536:
 			nextNotReceived -= 65536
-		self.windowBase = nextNotReceived
+		self.windowBase = self.nextSequenceNumber if nextNotReceived >= 100000 else nextNotReceived
 		max = self.windowBase + self.windowSize
 		self.queueUse.acquire()
+
 		# read from the file to fill the unused window
 		while nextToRead + self.payloadSize <= max or nextToRead + self.payloadSize - 32000 > max:
 			newBytes = bytearray(self.file.read(self.payloadSize), 'utf-8')
 			self.window[nextToRead] = newBytes
-			packet = Message(messageBytes=newBytes)
+			packet = Message(seqNum=nextToRead, payload=newBytes)
 			self.messageQueue.append(packet)
+
 			nextToRead += self.payloadSize
 			if nextToRead >= 65536:
 				nextToRead -= 65536
@@ -97,5 +102,6 @@ class SrSender:
 				self.doneReading = True
 				self.file.close()
 				break
+		self.nextSequenceNumber = nextToRead
 		self.queueUse.release()
 

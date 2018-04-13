@@ -25,11 +25,10 @@ class SrReceiver:
 		# f.close()
 		while True:
 			messageBytes, clientAddress = self.serverSocket.recvfrom(2048)
-			print('received')
 			message = Message(messageBytes=messageBytes)
 			if message.checksumValue != message.calcChecksum():	# corrupted message
 				continue
-			
+			print('received', message.sequenceNumber)
 			# send ack
 			ack = Message(seqNum=0, ackNum=message.sequenceNumber, payload=[])
 			self.serverSocket.sendto(ack.toBytes(), clientAddress)
@@ -50,7 +49,7 @@ class SrReceiver:
 			
 			
 	def updateBuffer(self):
-		while self.buffer.has_key(self.windowBase):	# first message in window has been received
+		while self.windowBase in self.buffer:	# first message in window has been received
 			self.sentToApplication += self.buffer[self.windowBase]
 			del(self.buffer[self.windowBase])
 			self.windowBase += self.payloadSize
