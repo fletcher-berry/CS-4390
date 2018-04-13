@@ -20,24 +20,25 @@ class GbnSender:
         self.retransmitted = 0
 
     def transmit_packet(self, packet):
-        print('Send: %s', packet.toBytes())
+        print('Sending message %d : %s' % (packet.sequenceNumber, packet.toBytes()))
         self.socket.sendto(packet.toBytes(), (self.serverAddr, self.serverPort))
 
-    def packet_timeout(self, packet):
-        print("I have timed oout")
-        #self.transmit_packet(packet)
+    def packet_timeout(self, pkt):
+        print("  Packet number %d timed out " % pkt.sequenceNumber)
+        self.transmit_packet(pkt)
 
     def run(self):
         print("Starting up...")
-        time.sleep(1)
         # retrieve x bytes from file and send 
         with open(self.filePath, "rb") as inputFile:
             pkt = inputFile.read(self.payLoadSize)
-            seqNum = 0
+            # -1 because we start with a packet loaded
+            seqNum = -1
             ackNum = 0
             while pkt:
                 # if the window isn't full yet
                 if seqNum + 1 <= self.windowBase + self.windowSize:
+                    self.window.append(pkt)
                     seqNum = seqNum + 1
 
                     # package up into message and send to receiver
@@ -46,12 +47,12 @@ class GbnSender:
                                   payload = pkt )
                     self.transmit_packet(msg)
 
-                    # Read more from file
-                    pkt = inputFile.read(self.payLoadSize)
-                    self.window.append(pkt)
-
                     # Set new packet timer with ID ack
-                    self.packetTimers[ackNum] = Timer(0.1, self.packet_timeout, ackNum, pkt)
+                    self.packetTimers[ackNum] = Timer(.1, self.packet_timeout, [msg] )
+                    self.packetTimers[ackNum].start()
+
+                    # load next section of data
+                    pkt = inputFile.read(self.payLoadSize)
 
                 # look for an ACK to further along the window
                 else:
@@ -61,10 +62,11 @@ class GbnSender:
                     # successfully received uncorrupted packet
                     if msg.checksumValue == msg.calcChecksum():
                         # move window base along, remove packet from front
-                        # and remove timer for packet
+                        # and remove timer for packet.
                         del self.packetTimers[msg.ReceivedAckNum]
                         self.windowBase = self.WindowBase + 1
                         del self.window[0]
+                        # add logic to remove timers prior to the received ack as well
 
 # Dummy receiver class to test sender 
 class GbnReceiver:
@@ -83,31 +85,30 @@ class GbnReceiver:
         # receive
         print("Starting up...")
         self.socket.bind((self.serverAddr, self.serverPort))
-        time.sleep(1)
         while True:
-            print(" I am waiting on packets... ")
+            print("\tReceiver waiting on packets... ")
             msgBytes, Addr = self.socket.recvfrom(2048)
-            #msg = Message.fromBytes(msgBytes)
-            print('Received: %s', msgBytes)
-
             msgBytes, clientAddress = self.socket.recvfrom(2048)
             msg = Message(messageBytes=msgBytes)
 
-            if msg.checksumValue == msg.calcChecksum():
-                if msg.acknowledgmentNumber == (self.cumulativeAck + 1):
-                    ReceivedAckNum = msg.acknowledgmentNumber
-                    ReceivedSeqNum = msg.sequenceNumber
+            #if msg.checksumValue == msg.calcChecksum():
+            print("\tReceiving %d : %s" % (msg.sequenceNumber, str(msgBytes)))
+            #print("\tSEQ %d : CUMULATIVE %d" % (msg.sequenceNumber,self.cumulativeAck))
+            if msg.sequenceNumber == self.cumulativeAck:
+                receiverAckNum = msg.acknowledgmentNumber
+                receiverSeqNum = msg.sequenceNumber
 
-                    # send acknowledgement if the packet 
-                    msg = Message(ReceivedSeqNum, ReceivedAckNum+1, pkt)
-                    print('Received: %s', msg.payload)
-
-                    self.socket.sendto(msg, (self.serverAddr, self.serverPort))
-
-                else:
-                    # discard packet out of line
-                    print('Message discarded, out of order...')
-                    pass
+                # send acknowledgement if the packet 
+                msg = Message(receiverSeqNum, receiverAckNum, [])
+                print("\tAcking: %d" % receiverAckNum)
+                self.socket.sendto(msg.toBytes(), (self.serverAddr, self.serverPort))
+                self.cumulativeAck += 1
+            else:
+                # discard packet out of line
+                print('\tMessage discarded, out of order...')
+                pass
+            #else:
+            #    print('Corrupted message')
 
             time.sleep(1)
 
