@@ -11,6 +11,7 @@ class GbnSender:
         self.clientPort = 2345
         self.socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         self.filePath = filePath
+        self.cumulativeAck = 0
         self.payLoadSize = 10
         self.packetTimers = {}
         self.timerLock = threading.Semaphore(1)
@@ -36,17 +37,20 @@ class GbnSender:
         self.socket.sendto(packet.toBytes(), (self.addr, self.serverPort))
 
     def packet_timeout(self, pkt):
-        print("TIMED OUT: status of packetTimers: ")
-        print(self.packetTimers[pkt.sequenceNumber])
-        if self.packetTimers[pkt.sequenceNumber]:
-            print("  Packet number %d timed out " % pkt.sequenceNumber)
-            self.transmit_packet(pkt)
-            self.retransmitted += 1
-            threading.Timer(5,self.packet_timeout,[pkt]).start()
+        if pkt.sequenceNumber in self.packetTimers.keys():
+            if self.packetTimers[pkt.sequenceNumber]:
+                if pkt.sequenceNumber > self.cumulativeAck:
+                    print("  Packet number %d timed out " % pkt.sequenceNumber)
+                    self.transmit_packet(pkt)
+                    self.retransmitted += 1
+                    threading.Timer(1,self.packet_timeout,[pkt]).start()
+            else:
+                del self.packetTimers[pkt.sequenceNumber]
 
     def send(self):
         print("Starting up...")
         time.sleep(1)
+        start_time = time.time()
         # retrieve x bytes from file and send 
         with open(self.filePath, "rb") as inputFile:
             pkt = inputFile.read(self.payLoadSize)
@@ -55,7 +59,7 @@ class GbnSender:
             while pkt:
                 # if the window isn't full yet
                 if seqNum + 1 <= self.windowBase + self.windowSize:
-                    print("-------------SENDING info")
+                    print("\n-------------SENDING info")
                     self.windowLock.acquire()
                     self.window.append(pkt)
                     self.windowLock.release()
@@ -67,15 +71,18 @@ class GbnSender:
 
                     # Set new packet timer with ID ack
                     self.timerLock.acquire()
-                    self.packetTimers[ackNum] = True
-                    print("just added to packet timers")
-                    print(self.packetTimers)
-                    threading.Timer(5, self.packet_timeout, [msg]).start()
+                    if seqNum not in self.packetTimers.keys():
+                        self.packetTimers[seqNum] = True
+                    print("Packet Timer statuses: ",self.packetTimers)
+                    threading.Timer(1, self.packet_timeout, [msg]).start()
                     self.timerLock.release()
 
                     # load next section of data
                     pkt = inputFile.read(self.payLoadSize)
                     seqNum += 1
+        end_time = time.time()
+        print("Finished transmitting file. in %.3f seconds" % float(end_time - start_time))
+        print("Packets retrasnmitted: %d" % self.retransmitted)
 
 
     def receive(self):
@@ -88,11 +95,12 @@ class GbnSender:
             #if msg.checksumValue == msg.calcChecksum():
             # move window base along, remove packet from front
             # and remove timer for packet.
+
             print("Received ack for %d" % msg.acknowledgmentNumber)
+            self.cumulativeAck = msg.acknowledgmentNumber
             self.timerLock.acquire()
-            print(self.packetTimers)
             if msg.acknowledgmentNumber in self.packetTimers.keys():
-                del self.packetTimers[msg.acknowledgmentNumber]
+                self.packetTimers[msg.acknowledgmentNumber] = False
             self.timerLock.release()
 
             self.windowLock.acquire()
@@ -109,6 +117,10 @@ class GbnReceiver:
         self.serverPort = 2346
         self.socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         self.socket.bind(('', self.serverPort))
+        self.windowSize = windowSize
+        self.window = []
+        self.windowLock = threading.Semaphore(1)
+        self.windowBase = 0
         self.payLoadSize = 10
         self.cumulativeAck = 0
 
@@ -116,7 +128,6 @@ class GbnReceiver:
         # receive
         print("Starting up...")
         while True:
-            print("\tReceiver waiting on packets... ")
             msgBytes, clientAddress = self.socket.recvfrom(1024)
             msg = Message(messageBytes=msgBytes)
 
