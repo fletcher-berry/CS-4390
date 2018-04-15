@@ -42,7 +42,7 @@ def main():
                 #filePath = prompt_for_file()
                 #windowSize = prompt_for_window()
                 filePath = "a.txt"
-                windowSize = 3
+                windowSize = 1
 
                 # temporary setup 
                 gbn = GbnSender(windowSize, filePath)
