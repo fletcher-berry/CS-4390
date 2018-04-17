@@ -9,6 +9,6 @@ def run(windowSize, payloadSize, filePath):
 	_thread.start_new_thread(sender.run, ())
 	# what to do after file is transmitted?
 
-run(32, 50, 'C:\data.txt')
+run(32, 50, 'data.txt')
 while True:
 	x = 0

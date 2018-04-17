@@ -64,7 +64,7 @@ class SrSender:
 			retransmitMessage = Message(messageBytes=self.window[sequenceNumber])
 			self.messageQueue.insert(0, retransmitMessage)
 			self.queueUse.release()
-			timer = threading.Timer(0.1, timeout, [retransmitMessage.sequenceNumber])
+			timer = threading.Timer(0.03, timeout, [retransmitMessage.sequenceNumber])
 			timer.start()
 
 
