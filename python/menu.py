@@ -1,7 +1,7 @@
 #!/usr/bin/env python3.6
 import selectiveRepeatRunner
 from gbn_sender import GbnSender
-from gbn_sender import GbnReceiver
+from gbn_receiver import GbnReceiver
 import os
 
 # For testing
@@ -42,14 +42,14 @@ def main():
                 #filePath = prompt_for_file()
                 #windowSize = prompt_for_window()
                 filePath = "a.txt"
-                windowSize = 1
+                windowSize = 32
 
                 # temporary setup 
-                gbn = GbnSender(windowSize, filePath)
-                gbn_r = GbnReceiver(windowSize)
+                gbns = GbnSender(windowSize, filePath, packetSize = 100)
+                gbnr = GbnReceiver(packetSize = 100)
 
-                ps = Process(target=gbn.run, args=())
-                pr = Process(target=gbn_r.run, args=())
+                ps = Process(target=gbns.run, args=())
+                pr = Process(target=gbnr.run, args=())
 
                 ps.start()
                 pr.start()
