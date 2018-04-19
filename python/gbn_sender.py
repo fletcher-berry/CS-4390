@@ -2,7 +2,7 @@
 import socket
 from Message import Message
 import time
-from threading import *
+from threading import Semaphore
 from multiprocessing import Process
 import _thread
 
