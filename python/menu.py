@@ -60,10 +60,11 @@ def main():
                 decision = "x"
 
             elif decision == "1":
-                #filepath = prompt_for_file()
-                #windowSize = prompt_for_window()
-                #selectiveRepeatRunner.run()
-                decision = "x"
+                filepath = prompt_for_file()
+                windowSize = prompt_for_window()
+                selectiveRepeatRunner.run(windowSize, 50, filepath)
+                while True:     # makes sure process doesn't terminate
+                    pass
 
             elif decision != "x":
                 print("Decision not recognized.\n")
