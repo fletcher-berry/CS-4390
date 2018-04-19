@@ -3,9 +3,7 @@ import selectiveRepeatRunner
 from gbn_sender import GbnSender
 from gbn_receiver import GbnReceiver
 import os
-
-# For testing
-from multiprocessing import Process, Queue
+from multiprocessing import Process
 
 def prompt_for_file():
    while True:
@@ -54,10 +52,10 @@ def main():
                 ps.start()
                 pr.start()
 
-                ps.join()
                 pr.join()
-
-                decision = "x"
+                ps.join()
+            
+                break
 
             elif decision == "1":
                 filepath = prompt_for_file()

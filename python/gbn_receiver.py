@@ -13,7 +13,7 @@ class GbnReceiver:
         self.socket.bind(('127.0.0.1', self.serverPort))
 
         self.packetSize = packetSize
-        self.cumulativeAck = 0
+        self.cAck = 0
 
     def run(self):
         try:
@@ -21,30 +21,33 @@ class GbnReceiver:
         except IOError:
             print("Unable to open file.")
             return
+        try:
+            while True:
+                msg, addr = self.socket.recvfrom(self.packetSize)
+                msg = Message(messageBytes=msg)
 
-        while True:
-            msg, addr = self.socket.recvfrom(self.packetSize)
-            msg = Message(messageBytes=msg)
+                #if msg.checksumValue == msg.calcChecksum():
+                #print("\tReceived : %d Expected : %d" % (msg.sequenceNumber, self.cAck))
+                if msg.sequenceNumber == self.cAck:
+                    # send ack if the packet is in order
+                    rsp = Message(msg.sequenceNumber, self.cAck, [])
+                    #print("\tAcking: %d" % self.cAck)
+                    self.socket.sendto(rsp.toBytes(), addr)
+                    self.cAck += 1
 
-            #if msg.checksumValue == msg.calcChecksum():
-            #print("\tReceiving %d : %s" % (msg.sequenceNumber, str(msgBytes)))
-            if msg.sequenceNumber == self.cumulativeAck:
-                # deal with information received
-                data = msg.payload.decode('utf-8')
-                f.write(data)
-                #print(data.encode('unicode_escape').decode('utf-8'), file=f)
-
-                # send ack if the packet is in order
-                rsp = Message(msg.sequenceNumber, self.cumulativeAck, [])
-                #print("\tAcking: %d" % self.cumulativeAck)
-                self.socket.sendto(rsp.toBytes(), addr)
-                self.cumulativeAck += 1
-            else:
-                # discard packet out of line and send cumulative - 1 as ack
-                #print("\tAcking: %d" % self.cumulativeAck-1)
-                response = Message(msg.sequenceNumber,self.cumulativeAck-1,[])
-                self.socket.send(response.toBytes(), sock, addr)
-        self.socket.close()
+                    # deal with information received
+                    data = msg.payload.decode('utf-8')
+                    f.write(data)
+                else:
+                    # discard packet out of line and send cAck - 1 as ack
+                    rsp = Message(msg.sequenceNumber,self.cAck-1,[])
+                    self.socket.sendto(rsp.toBytes(), addr)
+                #else: pass
+        except KeyboardInterrupt:
+            print()
+        finally:
+            f.close()
+            self.socket.close()
 
 
 
