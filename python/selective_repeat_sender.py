@@ -1,8 +1,8 @@
 
 import threading
-from socket import *
-from _thread import *
-from threading import Semaphore
+from socket import socket, AF_INET, SOCK_DGRAM
+#from _thread import
+#from threading import Semaphore
 import random
 
 import _thread
@@ -96,7 +96,7 @@ class SrSender:
                 print("retransmitting", sequenceNumber)
                 retransmitMessage = Message(messageBytes=self.window[sequenceNumber])
                 self.messageQueue.insert(0, retransmitMessage)
-                timer = threading.Timer(self.timeoutInterval, timeout, [retransmitMessage.sequenceNumber])
+                timer = threading.Timer(self.timeoutInterval, self.timeout, [retransmitMessage.sequenceNumber])
                 timer.start()
             self.queueUse.release()
 
