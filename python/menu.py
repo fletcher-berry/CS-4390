@@ -37,12 +37,10 @@ def main():
             decision = input(">")
 
             if decision == "0":
-                #filePath = prompt_for_file()
-                #windowSize = prompt_for_window()
-                filePath = "a.txt"
-                windowSize = 32
+                filePath = prompt_for_file()
+                windowSize = prompt_for_window()
 
-                # temporary setup 
+                # a setup 
                 gbns = GbnSender(windowSize, filePath, packetSize = 100)
                 gbnr = GbnReceiver(packetSize = 100)
 
@@ -61,8 +59,12 @@ def main():
                 filepath = prompt_for_file()
                 windowSize = prompt_for_window()
                 selectiveRepeatRunner.run(windowSize, 50, filepath)
-                while True:     # makes sure process doesn't terminate
-                    pass
+
+                try: 
+                    while True:     # makes sure process doesn't terminate
+                        pass
+                except KeyboardInterrupt:
+                    break
 
             elif decision != "x":
                 print("Decision not recognized.\n")

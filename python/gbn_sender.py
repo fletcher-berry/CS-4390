@@ -53,6 +53,7 @@ class GbnSender:
             # retransmit whole window
             for packet in self.packets[seqNum:seqNum+self.windowSize]:
 
+                print("retransmitted ", seqNum)
                 self.socket.sendto(packet.toBytes(),self.destAddr)
                 timer = Timer(0.1, self.timeout, [seqNum])
                 timer.start()
@@ -80,7 +81,7 @@ class GbnSender:
             if seqNum < (self.cAck + self.windowSize):
                 # transmit all packets in the window
                 for packet in self.packets[seqNum:seqNum+self.windowSize]:
-
+                    print("transmitted ", seqNum)
                     self.socket.sendto(self.packets[seqNum].toBytes(),self.destAddr)
                     seqNum += 1
 
