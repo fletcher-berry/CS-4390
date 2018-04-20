@@ -2,7 +2,7 @@
 import socket
 from Message import Message
 import time
-from threading import Semaphore
+from threading import Semaphore, Timer
 from multiprocessing import Process
 import _thread
 
@@ -20,15 +20,12 @@ class GbnSender:
 
         self.packets = []
         self.packetSize = packetSize
+        self.windowSize = windowSize
 
         self.ackLock = Semaphore(1)
 
-        self.windowSize = windowSize
-
         self.currentPkt = 0
         self.retransmitted = 0
-
-        self.dbg = 0
 
     def loadpackets(self):
         try:
@@ -43,14 +40,22 @@ class GbnSender:
                     data = bytearray(f.read(self.packetSize-6), 'utf-8')
                     self.packets.append(msg)
                     seqNum+=1 
-                #for p in self.packets:
-                #    print("payload %s" %s p.payload)
 
         except IOError:
             print("Cannot open file.")
             return
         finally:
             f.close()
+
+    def timeout(self, seqNum):
+        # if the packet hasn't been acknowledged yet
+        if seqNum < self.cAck:
+            # retransmit whole window
+            for packet in self.packets[seqNum:seqNum+self.windowSize]:
+
+                self.socket.sendto(packet.toBytes(),self.destAddr)
+                timer = Timer(0.1, self.timeout, [seqNum])
+                timer.start()
 
     def run(self):
         print("Starting up...")
@@ -67,22 +72,20 @@ class GbnSender:
         while self.cAck < numPackets:
             self.ackLock.acquire()
 
-            while seqNum < self.cAck + self.windowSize:
+            # shrink windowSize if we are approaching the end
+            if (self.cAck + self.windowSize) > numPackets:
+                self.windowSize = numPackets-self.cAck
 
-                if seqNum > numPackets:
-                    self.cAck = numPackets+1
-                    break
-                self.socket.sendto(self.packets[seqNum].toBytes(),self.destAddr)
-                seqNum += 1
+            # only transmit new packets if the window has shifted
+            if seqNum < (self.cAck + self.windowSize):
+                # transmit all packets in the window
+                for packet in self.packets[seqNum:seqNum+self.windowSize]:
 
-            #TODO implement a better timer here
+                    self.socket.sendto(self.packets[seqNum].toBytes(),self.destAddr)
+                    seqNum += 1
 
-            # Start timer here
-            # wait until either timeout or we're told there are more packets
-            # if timeout, then set the seqNum value to be the cumulative Ack
-            #    ie seqNum = self.cAck
-            # then add the window size to the total retransmitted count
-            #    self.retransmitted += self.windowSize
+                # set a timer for packets from current cumulativeAck+1 to window size
+                timer = Timer(0.1, self.timeout, self.cAck+1 )
 
             self.ackLock.release()
 
@@ -102,21 +105,18 @@ class GbnSender:
             while True:
                 msgBytes, addr = self.socket.recvfrom(self.packetSize)
                 msg = Message(messageBytes=msgBytes)
+
                 # successfully received uncorrupted packet
-                #if msg.checksumValue == msg.calcChecksum():
+                if msg.checksumValue == msg.calcChecksum():
+                    # if the received acknowledgment is lower than the current packet we're 
+                    # trying to transmit
+                    if self.cAck <= msg.acknowledgmentNumber:
+                        self.ackLock.acquire()
 
-                # if the received acknowledgment is lower than the current packet we're 
-                # trying to transmit
-                if self.cAck <= msg.acknowledgmentNumber:
-                    self.ackLock.acquire()
+                        # maybe replace this with cAck += (msg.ack-cAck)?
+                        self.cAck += (msg.acknowledgmentNumber - self.cAck)
 
-                    #TODO stop the timer for the sender here
-
-                    # instead of crawling along at +1 every time, 
-                    # maybe replace this with cAck += (msg.ack-cAck)?
-                    self.cAck += 1
-
-                    self.ackLock.release()
+                        self.ackLock.release()
 
         except KeyboardInterrupt:
             pass
