@@ -50,7 +50,7 @@ class SrSender:
                 message = self.messageQueue[0]
                 del (self.messageQueue[0])
                 seqNum = message.sequenceNumber
-                bytes = message.toBytes()
+                messageBytes = message.toBytes()
 
                 self.queueUse.release()
                 timer = threading.Timer(self.timeoutInterval, self.timeout, [seqNum])
@@ -61,7 +61,7 @@ class SrSender:
                 # if(random.randint(0, 10) != 2):
                 #     self.clientSocket.sendto(bytes, (self.serverName, self.serverPort))
 
-                self.clientSocket.sendto(bytes, (self.serverName, self.serverPort))
+                self.clientSocket.sendto(messageBytes, (self.serverName, self.serverPort))
 
 
     def receiveFunc(self):
