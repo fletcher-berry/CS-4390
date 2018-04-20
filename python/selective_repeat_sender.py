@@ -60,8 +60,21 @@ class SrSender:
 
                 # if(random.randint(0, 10) != 2):
                 #     self.clientSocket.sendto(bytes, (self.serverName, self.serverPort))
+                self.maybeSend(messageBytes, (self.serverName, self.serverPort), num=message.sequenceNumber)
+                #self.clientSocket.sendto(messageBytes, (self.serverName, self.serverPort))
 
-                self.clientSocket.sendto(messageBytes, (self.serverName, self.serverPort))
+    def maybeSend(self, mbytes, serv, num=0):
+        DROP_CHANCE = 0.1
+        PING_MIN = 0.01
+        PING_MAX = 0.09
+        drop = (random.random() <= DROP_CHANCE)
+        if not drop:
+            ping = random.uniform(PING_MIN, PING_MAX)
+            timer = threading.Timer(ping, self.clientSocket.sendto,
+                [mbytes, serv])
+            timer.start()
+        else:
+            print("Dropping ", num)
 
 
     def receiveFunc(self):
