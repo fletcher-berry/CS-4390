@@ -2,7 +2,10 @@
 import selectiveRepeatRunner
 from gbn_sender import GbnSender
 from gbn_receiver import GbnReceiver
+from selective_repeat_receiver import SrReceiver
+from sender import Sender
 import os
+import _thread
 from multiprocessing import Process
 
 def prompt_for_file():
@@ -37,29 +40,28 @@ def main():
             decision = input(">")
 
             if decision == "0":
+                RECV_WINDOW = 1
+                PAYLOAD_SIZE = 100
                 filePath = prompt_for_file()
                 windowSize = prompt_for_window()
-
-                # a setup 
-                gbns = GbnSender(windowSize, filePath, packetSize = 100)
-                gbnr = GbnReceiver(packetSize = 100)
-
-                ps = Process(target=gbns.run, args=())
-                pr = Process(target=gbnr.run, args=())
-
-                ps.start()
-                pr.start()
-
-                pr.join()
-                ps.join()
-            
-                break
+                receiver = GbnReceiver(RECV_WINDOW, PAYLOAD_SIZE)
+                sender = Sender(windowSize, PAYLOAD_SIZE, filePath, GBN=True)
+                _thread.start_new_thread(receiver.run, ())
+                _thread.start_new_thread(sender.run, ())
+                try: 
+                    while True:     # makes sure process doesn't terminate
+                        pass
+                except KeyboardInterrupt:
+                    break
 
             elif decision == "1":
-                filepath = prompt_for_file()
+                PAYLOAD_SIZE = 100
+                filePath = prompt_for_file()
                 windowSize = prompt_for_window()
-                selectiveRepeatRunner.run(windowSize, 50, filepath)
-
+                receiver = SrReceiver(windowSize, PAYLOAD_SIZE)
+                sender = Sender(windowSize, PAYLOAD_SIZE, filePath, GBN=False)
+                _thread.start_new_thread(receiver.run, ())
+                _thread.start_new_thread(sender.run, ())
                 try: 
                     while True:     # makes sure process doesn't terminate
                         pass
