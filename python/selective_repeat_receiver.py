@@ -32,7 +32,7 @@ class SrReceiver:
                         message = Message(messageBytes=messageBytes)
                         if message.checksumValue != message.calcChecksum():     # corrupted message
                                 continue
-                        print('received', message.sequenceNumber)
+                        #print('received', message.sequenceNumber)
                         # send ack
                         ack = Message(seqNum=0, ackNum=message.sequenceNumber, payload=[])
                         self.serverSocket.sendto(ack.toBytes(), clientAddress)
