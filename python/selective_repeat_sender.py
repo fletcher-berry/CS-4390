@@ -32,7 +32,7 @@ class SrSender:
         self.nextSequenceNumber = 0
         self.numRetransmits = 0
         self.getMoreData()
-        self.timeoutInterval = 0.1
+        self.timeoutInterval = 0.2
 
 
 
@@ -60,11 +60,13 @@ class SrSender:
 
                 # if(random.randint(0, 10) != 2):
                 #     self.clientSocket.sendto(bytes, (self.serverName, self.serverPort))
+                #if(message.sequenceNumber > 62000):
+                    #print("sending", message.sequenceNumber)
                 self.maybeSend(messageBytes, (self.serverName, self.serverPort), num=message.sequenceNumber)
                 #self.clientSocket.sendto(messageBytes, (self.serverName, self.serverPort))
 
     def maybeSend(self, mbytes, serv, num=0):
-        DROP_CHANCE = 0.1
+        DROP_CHANCE = 0.14
         PING_MIN = 0.01
         PING_MAX = 0.09
         drop = (random.random() <= DROP_CHANCE)
@@ -99,7 +101,7 @@ class SrSender:
     def timeout(self, sequenceNumber):
 
         if sequenceNumber in self.window:
-            print("timeout")
+            #print("timeout")
             self.queueUse.acquire()
             # have to check again b/c she sequence number may have been taken out of the window by another thread
             # I could place the acquire() outside the if, but that would require a lock every time timeout() is called
@@ -109,8 +111,6 @@ class SrSender:
                 print("retransmitting", sequenceNumber)
                 retransmitMessage = Message(messageBytes=self.window[sequenceNumber])
                 self.messageQueue.insert(0, retransmitMessage)
-                timer = threading.Timer(self.timeoutInterval, self.timeout, [retransmitMessage.sequenceNumber])
-                timer.start()
             self.queueUse.release()
 
 

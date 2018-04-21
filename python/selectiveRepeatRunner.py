@@ -12,7 +12,7 @@ def run(windowSize, payloadSize, filePath):
     # what to do after file is transmitted?
 
 if __name__ == '__main__':
-    run(32, 100, 'test.txt')
+    run(32, 100, 'realdata.txt')
     #input("fdsfd")
     #while True:
         #x = 0
