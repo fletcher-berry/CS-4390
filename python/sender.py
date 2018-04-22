@@ -32,7 +32,7 @@ class Sender:
         self.nextSequenceNumber = 0
         self.numRetransmits = 0
         self.getMoreData()
-        self.timeoutInterval = 0.3
+        self.timeoutInterval = 0.1
         self.GBN = GBN
 
 
@@ -52,11 +52,21 @@ class Sender:
                 seqNum = message.sequenceNumber
                 messageBytes = message.toBytes()
 
+                # if gbn, only start timer if packet is first in window
+                startTimer = True
+                if self.GBN:
+                    for x in self.window:
+                        if x < seqNum and x + 50000 > seqNum:
+                            startTimer = False
+                # if(seqNum == 0):
+                #     print("working?", startTimer)
                 self.queueUse.release()
-                timer = threading.Timer(self.timeoutInterval, self.timeout, [seqNum])
-                #print("start", float(time.time() - self.startTime))
-                timer.start()
-                #print("end", float(time.time() - self.startTime))
+
+                if startTimer:
+                    timer = threading.Timer(self.timeoutInterval, self.timeout, [seqNum])
+                    #print("start", float(time.time() - self.startTime))
+                    timer.start()
+                    #print("end", float(time.time() - self.startTime))
 
                 # if(random.randint(0, 10) != 2):
                 #     self.clientSocket.sendto(bytes, (self.serverName, self.serverPort))
@@ -70,9 +80,11 @@ class Sender:
         drop = (random.random() <= DROP_CHANCE)
         if not drop:
             ping = random.uniform(PING_MIN, PING_MAX)
-            timer = threading.Timer(ping, self.clientSocket.sendto,
-                [mbytes, serv])
-            timer.start()
+            # timer = threading.Timer(ping, self.clientSocket.sendto,
+            #     [mbytes, serv])
+            self.clientSocket.sendto(mbytes, serv)
+            # if gbn, only start timer if packet is first in window
+            # timer.start()
         else:
             print("Dropping ", num)
 
@@ -89,6 +101,7 @@ class Sender:
                     print("duplicate ack")
                 if (ackNum == self.windowBase):
                     self.getMoreData()
+                #print(self.window.keys())
                 if self.doneReading and len(self.window) == 0:
                     print("done at sender")
                     print("time:", float(time.time() - self.startTime))
@@ -108,20 +121,40 @@ class Sender:
         self.queueUse.release()
 
     def timeout(self, sequenceNumber):
-
         if sequenceNumber in self.window:
+            if not self.GBN:
+                self.queueUse.acquire()
+                # have to check again b/c she sequence number may have been taken out of the window by another thread
+                # I could place the acquire() outside the if, but that would require a lock every time timeout() is called
+                if(sequenceNumber in self.window):  # have to check a
+                    self.numRetransmits += 1
+                #print(self.window)
+                    print("retransmitting", sequenceNumber)
+                    retransmitMessage = Message(messageBytes=self.window[sequenceNumber])
+                    self.messageQueue.insert(0, retransmitMessage)
+                    timer = threading.Timer(self.timeoutInterval, self.timeout, [retransmitMessage.sequenceNumber])
+                    timer.start()
+                self.queueUse.release()
+            else:   # gbn: resend all messages in window
+                self.queueUse.acquire()
+                self.messageQueue.clear()
+                for seqNum in self.window:
+                    retransmitMessage = Message(messageBytes=self.window[seqNum])
+                    self.messageQueue.append(retransmitMessage)
+                self.queueUse.release()
+        elif self.GBN:   # if gbn and received packet times out, start timer for oldest packet in window
             self.queueUse.acquire()
-            # have to check again b/c she sequence number may have been taken out of the window by another thread
-            # I could place the acquire() outside the if, but that would require a lock every time timeout() is called
-            if(sequenceNumber in self.window):  # have to check a
-                self.numRetransmits += 1
-            #print(self.window)
-                print("retransmitting", sequenceNumber)
-                retransmitMessage = Message(messageBytes=self.window[sequenceNumber])
-                self.messageQueue.insert(0, retransmitMessage)
-                timer = threading.Timer(self.timeoutInterval, self.timeout, [retransmitMessage.sequenceNumber])
-                timer.start()
+            if len(self.window) == 0:
+                return
+            min = -1
+            for x in self.window:
+                if min == -1:
+                    min = x
+                elif x < min and x + 50000 > min:
+                    min = x
             self.queueUse.release()
+            timer = threading.Timer(self.timeoutInterval, self.timeout, [min])
+            timer.start()
 
 
 

@@ -32,7 +32,7 @@ class GbnReceiver:
                         message = Message(messageBytes=messageBytes)
                         if message.checksumValue != message.calcChecksum():     # corrupted message
                                 continue
-                        print('received', message.sequenceNumber)
+                        #print('received', message.sequenceNumber)
                         
                         # check if sequence number is in window
                         windowMax = self.windowBase + self.windowSize
