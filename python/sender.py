@@ -193,6 +193,7 @@ class Sender:
             if nextToRead >= 65536:
                 nextToRead -= 65536
             if len(newBytes) < self.payloadSize:  # check for last packet
+                print("seq num where I am stopping:", packet.sequenceNumber)
                 self.doneReading = True
                 self.file.close()
                 break
