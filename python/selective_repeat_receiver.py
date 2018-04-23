@@ -1,76 +1,73 @@
 from socket import socket, AF_INET, SOCK_DGRAM
-
+import time
 from Message import Message
 
+"""
+receiver for selective repeat.
+"""
 
 
 class SrReceiver:
 
-        def __init__(self, windowSize, payloadSize):
-                self.windowSize = windowSize * payloadSize # window size in bytes
-                self.serverName = "127.0.0.1"
-                self.serverPort = 2345
-                self.serverSocket = socket(AF_INET, SOCK_DGRAM)
-                self.serverSocket.bind(('', self.serverPort))
-                self.windowBase = 0
-                self.payloadSize = payloadSize
-                self.buffer = {}                                # map sequence number to message payload
-                self.sentToApplication = []     # bytes sent to application layer
-                self.endSequence = False         # sequence number of last packet
+    def __init__(self, windowSize, payloadSize):
+        self.windowSize = windowSize * payloadSize # window size in bytes
+        self.serverName = "127.0.0.1"
+        self.serverPort = 2345
+        self.serverSocket = socket(AF_INET, SOCK_DGRAM)
+        self.serverSocket.bind(('', self.serverPort))
+        self.windowBase = 0             # base of the receiver window
+        self.payloadSize = payloadSize  # size of the payload in bytes
+        self.buffer = {}                # map sequence number to message payload
+        self.sentToApplication = []     # bytes sent to application layer
+        self.endSequence = False        # whether last packet has been received
 
 
 
+    # runs the receiver as a thread
+    def run(self):
+        while True:
 
-        def run(self):
-                print('running', flush=True)
-                # f = open("test2.txt")
-                # f.write("rrr")
-                # f.close()
-                while True:
+            messageBytes, clientAddress = self.serverSocket.recvfrom(2048)  # receive packet
 
-                        messageBytes, clientAddress = self.serverSocket.recvfrom(2048)
-                        message = Message(messageBytes=messageBytes)
-                        if message.checksumValue != message.calcChecksum():     # corrupted message
-                                continue
-                        #print('received', message.sequenceNumber)
-                        # send ack
-                        ack = Message(seqNum=0, ackNum=message.sequenceNumber, payload=[])
-                        self.serverSocket.sendto(ack.toBytes(), clientAddress)
-                        
-                        # check if sequence number is in window
-                        windowMax = self.windowBase + self.windowSize
-                        if windowMax < 65536:
-                                inWindow = self.windowBase <= message.sequenceNumber < windowMax
-                        else:
-                                inWindow = message.sequenceNumber >= self.windowBase or message.sequenceNumber < windowMax - 65536
-                        if not inWindow:
-                                continue
+            message = Message(messageBytes=messageBytes)
+            if message.checksumValue != message.calcChecksum():     # check for bit error
+                continue
+            #print('received', message.sequenceNumber)
+            # send ack regardless of whether received packet is duplicate
+            ack = Message(seqNum=0, ackNum=message.sequenceNumber, payload=[])
+            self.serverSocket.sendto(ack.toBytes(), clientAddress)
 
-                        # if payload is shorter than payload size, it is the last packet
-                        if len(message.payload) < self.payloadSize:
-                                self.endSequence = True
-                        
-                        # if in window buffer
-                        self.buffer[message.sequenceNumber] = message.payload
-                        if message.sequenceNumber == self.windowBase:
-                                self.updateBuffer()
+            # check if sequence number is in window, if not, do no further processing
+            windowMax = self.windowBase + self.windowSize
+            if windowMax < 65536:
+                inWindow = self.windowBase <= message.sequenceNumber < windowMax
+            else:
+                inWindow = message.sequenceNumber >= self.windowBase or message.sequenceNumber < windowMax - 65536
+            if not inWindow:
+                continue
 
-                        if self.endSequence and len(self.buffer) == 0:     # all packets received
-                                outFile = open("output.txt", "w+")
-                                str1 = bytearray(self.sentToApplication).decode('utf-8')
-                                outFile.write(str1)
-                                outFile.close()
-                                print(str1)
-                                #exit()
+            # if payload is shorter than payload size, it is the last packet
+            if len(message.payload) < self.payloadSize:
+                self.endSequence = True
 
-            
-                        
-                        
-        def updateBuffer(self):
-                while self.windowBase in self.buffer:   # first message in window has been received
-                        self.sentToApplication += self.buffer[self.windowBase]
-                        del(self.buffer[self.windowBase])
-                        self.windowBase += self.payloadSize
+            # buffer the packet
+            self.buffer[message.sequenceNumber] = message.payload
+            if message.sequenceNumber == self.windowBase:
+                    self.updateBuffer()
 
-                        
+            if self.endSequence and len(self.buffer) == 0:     # all packets received
+                outFile = open("output.txt", "w+")          # write received data to file
+                str1 = bytearray(self.sentToApplication).decode('utf-8')
+                outFile.write(str1)
+                outFile.close()
+                #print(str1)
+                break
+
+    # slides window if next expected packet has been received
+    def updateBuffer(self):
+        while self.windowBase in self.buffer:   # first message in window has been received
+            self.sentToApplication += self.buffer[self.windowBase]  # send to application layer
+            del(self.buffer[self.windowBase])   # remove packet from buffer
+            self.windowBase += self.payloadSize # update window
+
 

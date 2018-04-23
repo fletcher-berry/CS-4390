@@ -44,7 +44,7 @@ def main():
                 PAYLOAD_SIZE = 100
                 filePath = prompt_for_file()
                 windowSize = prompt_for_window()
-                receiver = GbnReceiver(RECV_WINDOW, PAYLOAD_SIZE)
+                receiver = GbnReceiver(PAYLOAD_SIZE)
                 sender = Sender(windowSize, PAYLOAD_SIZE, filePath, GBN=True)
                 _thread.start_new_thread(receiver.run, ())
                 _thread.start_new_thread(sender.run, ())
