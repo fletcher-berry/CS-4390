@@ -28,11 +28,11 @@ def prompt_for_window():
         try:
             window_size = int(input("Enter a window size>"))
 
-            if window_size in range(1,65555):
+            if window_size in range(1,32767):   # window size can be at most half of the sequence number values
                 return window_size
             else:
                 print("Invalid window size")
-                print("Acceptable window sizes: integers between 1 and 65,535") 
+                print("Acceptable window sizes: integers between 1 and 32,767")
         except ValueError:
             print("Not a valid integer")
 

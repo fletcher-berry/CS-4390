@@ -60,6 +60,7 @@ class SrReceiver:
                 str1 = bytearray(self.sentToApplication).decode('utf-8')
                 outFile.write(str1)
                 outFile.close()
+                print("done at receiver")
                 #print(str1)
                 break
 

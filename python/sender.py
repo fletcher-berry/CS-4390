@@ -75,7 +75,7 @@ class Sender:
 
     # used for testing proposes.  Emulates packet loss and delay
     def maybeSend(self, mbytes, serv, num=0):
-        DROP_CHANCE = 0.1   # chance of loss
+        DROP_CHANCE = 0.03   # chance of loss
         PING_MIN = 0.01     # min and max delay values in seconds
         PING_MAX = 0.04
         drop = (random.random() <= DROP_CHANCE)
@@ -97,7 +97,8 @@ class Sender:
                 if ackNum in self.window:
                     self.process_ack(ackNum)
                 else:
-                    print("duplicate ack")
+                    pass
+                    #print("duplicate ack")
                 if (ackNum == self.windowBase):     # if ACK is for first packet in window, the window slides
                     self.getMoreData()
                 #print(self.window.keys())
@@ -113,7 +114,7 @@ class Sender:
         to_remove = []
         if self.GBN:                # for GBN, cumulative ACK, so remove from window everything that came before the ACKed packet
             for key in self.window:
-                if key <= ackNum:
+                if key <= ackNum and key + 50000 > ackNum:
                     to_remove.append(key)
             for entry in to_remove:
                 del (self.window[entry])

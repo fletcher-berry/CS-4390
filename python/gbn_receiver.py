@@ -39,6 +39,8 @@ class GbnReceiver:
                     print("\tAcking: %d" % self.cAck)
                     self.socket.sendto(rsp.toBytes(), addr)
                     self.cAck += self.packetSize
+                    if self.cAck >= 65536:  # loop sequence numbers around
+                        self.cAck -= 65536
 
                     # deal with information received
                     data = msg.payload.decode('utf-8')
@@ -51,7 +53,10 @@ class GbnReceiver:
                         break
                 else:
                     # discard packet out of line and send cAck - 1 as ack
-                    rsp = Message(seqNum=msg.sequenceNumber, ackNum=self.cAck - self.packetSize, payload=[])
+                    ackNum = self.cAck - self.packetSize
+                    if ackNum < 0:
+                        ackNum += 65536
+                    rsp = Message(seqNum=msg.sequenceNumber, ackNum=ackNum, payload=[])
                     self.socket.sendto(rsp.toBytes(), addr)
         except KeyboardInterrupt:
             pass
