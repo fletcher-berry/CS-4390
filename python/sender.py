@@ -180,7 +180,7 @@ class Sender:
 
         # nextNotReceived would be unchanged if the window was empty
         self.windowBase = self.nextSequenceNumber if nextNotReceived >= 100000 else nextNotReceived
-        max = self.windowBase + self.windowSize     # sequence number of last packet in the window
+        max = (self.windowBase + self.windowSize) % 65536     # sequence number of last packet in the window
 
         # read from the file to fill the unused window
         self.queueUse.acquire()     # prevent other threads from accessing the message queue
@@ -194,6 +194,7 @@ class Sender:
                 nextToRead -= 65536
             if len(newBytes) < self.payloadSize:  # check for last packet
                 print("seq num where I am stopping:", packet.sequenceNumber)
+                print("max", max)
                 self.doneReading = True
                 self.file.close()
                 break
