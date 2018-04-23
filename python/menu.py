@@ -8,6 +8,13 @@ import os
 import _thread
 from multiprocessing import Process
 
+"""
+Allow the user to select window size, payload size, input file, and whether to use GBN or SR
+This is the entry point of the program.
+"""
+
+
+# prompts for file name
 def prompt_for_file():
    while True:
         file_name = input("Enter a file path>")
@@ -15,6 +22,7 @@ def prompt_for_file():
             return file_name
         print("File %s not found.", file_name)
 
+# prompts for window size
 def prompt_for_window():
     while True:
         try:
@@ -28,8 +36,22 @@ def prompt_for_window():
         except ValueError:
             print("Not a valid integer")
 
+# prompts for payload size
+def prompt_for_payload():
+    while True:
+        try:
+            payload_size = int(input("Enter a payload size>"))
+            if payload_size in range(10,101):
+                return payload_size
+            else:
+                print("Invalid window size")
+                print("Acceptable window sizes: integers between 10 and 100")
+        except ValueError:
+            print("Not a valid integer")
+
 def main():
     try:
+        # user selects between GBN and SR
         decision = ''
         while decision != "x":
             print("Main Menu of RDT UDP:")
@@ -40,12 +62,13 @@ def main():
             decision = input(">")
 
             if decision == "0":
+                # run GBN
                 RECV_WINDOW = 1
-                PAYLOAD_SIZE = 100
                 filePath = prompt_for_file()
                 windowSize = prompt_for_window()
-                receiver = GbnReceiver(PAYLOAD_SIZE)
-                sender = Sender(windowSize, PAYLOAD_SIZE, filePath, GBN=True)
+                payloadSize = prompt_for_payload()
+                receiver = GbnReceiver(payloadSize)
+                sender = Sender(windowSize, payloadSize, filePath, GBN=True)
                 _thread.start_new_thread(receiver.run, ())
                 _thread.start_new_thread(sender.run, ())
                 try: 
@@ -55,11 +78,12 @@ def main():
                     break
 
             elif decision == "1":
-                PAYLOAD_SIZE = 100
+                # run selective repeat
                 filePath = prompt_for_file()
                 windowSize = prompt_for_window()
-                receiver = SrReceiver(windowSize, PAYLOAD_SIZE)
-                sender = Sender(windowSize, PAYLOAD_SIZE, filePath, GBN=False)
+                payloadSize = prompt_for_payload()
+                receiver = SrReceiver(windowSize, payloadSize)
+                sender = Sender(windowSize, payloadSize, filePath, GBN=False)
                 _thread.start_new_thread(receiver.run, ())
                 _thread.start_new_thread(sender.run, ())
                 try: 
