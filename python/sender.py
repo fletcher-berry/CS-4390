@@ -141,6 +141,7 @@ class Sender:
                 self.messageQueue.clear()
                 for seqNum in self.window:
                     retransmitMessage = Message(messageBytes=self.window[seqNum])
+                    self.numRetransmits += 1
                     self.messageQueue.append(retransmitMessage)
                 self.queueUse.release()
         elif self.GBN:   # if gbn and already received packet times out, start timer for oldest packet in window
