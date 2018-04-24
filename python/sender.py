@@ -36,7 +36,7 @@ class Sender:
         self.GBNTimer = None
 
         self.getMoreData()
-        self.timeoutInterval = 0.25
+        self.timeoutInterval = 0.1
 
 
     # starts the send and receive ack threads
