@@ -36,7 +36,7 @@ class GbnReceiver:
                 if msg.sequenceNumber == self.cAck:     # check if packet is expected next packet
                     # send ack if the packet is in order
                     rsp = Message(seqNum=msg.sequenceNumber, ackNum=self.cAck, payload=[])
-                    print("\tAcking: %d" % self.cAck)
+                    #print("\tAcking: %d" % self.cAck)
                     self.socket.sendto(rsp.toBytes(), addr)
                     self.cAck += self.packetSize
                     if self.cAck >= 65536:  # loop sequence numbers around
