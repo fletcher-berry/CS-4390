@@ -32,7 +32,7 @@ class SrReceiver:
             message = Message(messageBytes=messageBytes)
             if message.checksumValue != message.calcChecksum():     # check for bit error
                 continue
-            #print('received', message.sequenceNumber)
+
             # send ack regardless of whether received packet is duplicate
             ack = Message(seqNum=0, ackNum=message.sequenceNumber, payload=[])
             self.serverSocket.sendto(ack.toBytes(), clientAddress)
@@ -53,7 +53,7 @@ class SrReceiver:
             # buffer the packet
             self.buffer[message.sequenceNumber] = message.payload
             if message.sequenceNumber == self.windowBase:
-                    self.updateBuffer()
+                self.updateBuffer()
 
             if self.endSequence and len(self.buffer) == 0:     # all packets received
                 outFile = open("output.txt", "w+")          # write received data to file
@@ -70,5 +70,7 @@ class SrReceiver:
             self.sentToApplication += self.buffer[self.windowBase]  # send to application layer
             del(self.buffer[self.windowBase])   # remove packet from buffer
             self.windowBase += self.payloadSize # update window
+            if self.windowBase >= 65536:
+                self.windowBase -= 65536
 
 
