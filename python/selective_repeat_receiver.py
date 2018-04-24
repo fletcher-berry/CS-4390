@@ -61,8 +61,7 @@ class SrReceiver:
                 outFile.write(str1)
                 outFile.close()
                 print("done at receiver")
-                #print(str1)
-                break
+
 
     # slides window if next expected packet has been received
     def updateBuffer(self):
