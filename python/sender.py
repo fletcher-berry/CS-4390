@@ -33,9 +33,10 @@ class Sender:
         self.nextSequenceNumber = 0             # the sequence number of the first unACKed packet
         self.numRetransmits = 0                 # number of retransmits
         self.GBN = GBN                          # boolean for whether GBN is used
+        self.GBNTimer = None
 
         self.getMoreData()
-        self.timeoutInterval = 0.1
+        self.timeoutInterval = 0.25
 
 
     # starts the send and receive ack threads
@@ -70,7 +71,7 @@ class Sender:
                     #print("end", float(time.time() - self.startTime))
 
                 #self.maybeSend(messageBytes, (self.serverName, self.serverPort), num=message.sequenceNumber)
-
+                print(self.windowBase, self.windowSize, message.sequenceNumber)
                 self.clientSocket.sendto(messageBytes, (self.serverName, self.serverPort))
 
     # used for testing proposes.  Emulates packet loss and delay
@@ -99,7 +100,7 @@ class Sender:
                 else:
                     pass
                     #print("duplicate ack")
-                if (ackNum == self.windowBase):     # if ACK is for first packet in window, the window slides
+                if (ackNum == self.windowBase or self.GBN):     # if ACK is for first packet in window, the window slides
                     self.getMoreData()
                 #print(self.window.keys())
                 if self.doneReading and len(self.window) == 0:  # last packet received
@@ -110,6 +111,7 @@ class Sender:
 
     # processes an ACK
     def process_ack(self, ackNum):
+        #print("Ack Received", ackNum)
         self.queueUse.acquire()     # prevent other threads from accessing the window
         to_remove = []
         if self.GBN:                # for GBN, cumulative ACK, so remove from window everything that came before the ACKed packet
@@ -118,12 +120,14 @@ class Sender:
                     to_remove.append(key)
             for entry in to_remove:
                 del (self.window[entry])
+            
         else:                       # for selective repeat, just remove the ACKed packet
             del (self.window[ackNum])
         self.queueUse.release()
 
     # handles a timeout
     def timeout(self, sequenceNumber):
+        #print("TIMEOUT", sequenceNumber)
         if sequenceNumber in self.window:
             if not self.GBN:
                 self.queueUse.acquire()
@@ -131,7 +135,7 @@ class Sender:
                 # I could place the acquire() outside the if, but that would require a lock every time timeout() is called
                 if sequenceNumber in self.window:
                     self.numRetransmits += 1
-                    #print("retransmitting", sequenceNumber)
+                    print("retransmitting", sequenceNumber)
                     retransmitMessage = Message(messageBytes=self.window[sequenceNumber])
                     self.messageQueue.insert(0, retransmitMessage)      # add retransmit message to head of the queue so it is resent as soon as possible
                     timer = threading.Timer(self.timeoutInterval, self.timeout, [retransmitMessage.sequenceNumber])
@@ -149,14 +153,14 @@ class Sender:
             self.queueUse.acquire()
             if len(self.window) == 0:
                 return
-            min = -1        # find sequence number of oldest packet
+            minimum = -1        # find sequence number of oldest packet
             for x in self.window:
-                if min == -1:
-                    min = x
-                elif x < min and x + 50000 > min:   # handles cycling of sequence numbers
-                    min = x
+                if minimum == -1:
+                    minimum = x
+                elif x < minimum and x + 50000 > minimum:   # handles cycling of sequence numbers
+                    minimum = x
             self.queueUse.release()
-            timer = threading.Timer(self.timeoutInterval, self.timeout, [min])
+            timer = threading.Timer(self.timeoutInterval, self.timeout, [minimum])
             timer.start()       # start timer for unacked packet
 
 
@@ -179,7 +183,9 @@ class Sender:
             nextNotReceived -= 65536
 
         # nextNotReceived would be unchanged if the window was empty
+        #print("~~", self.windowBase)
         self.windowBase = self.nextSequenceNumber if nextNotReceived >= 100000 else nextNotReceived
+        #print("==", self.windowBase)
         max = (self.windowBase + self.windowSize) % 65536     # sequence number of last packet in the window
 
         # read from the file to fill the unused window
