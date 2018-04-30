@@ -1,6 +1,4 @@
 #!/usr/bin/env python3.6
-import selectiveRepeatRunner
-from gbn_sender import GbnSender
 from gbn_receiver import GbnReceiver
 from selective_repeat_receiver import SrReceiver
 from sender import Sender

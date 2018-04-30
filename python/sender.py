@@ -135,7 +135,7 @@ class Sender:
                 # I could place the acquire() outside the if, but that would require a lock every time timeout() is called
                 if sequenceNumber in self.window:
                     self.numRetransmits += 1
-                    print("retransmitting", sequenceNumber)
+                    #print("retransmitting", sequenceNumber)
                     retransmitMessage = Message(messageBytes=self.window[sequenceNumber])
                     self.messageQueue.insert(0, retransmitMessage)      # add retransmit message to head of the queue so it is resent as soon as possible
                     timer = threading.Timer(self.timeoutInterval, self.timeout, [retransmitMessage.sequenceNumber])
